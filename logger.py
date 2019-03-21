@@ -30,7 +30,7 @@ except OSError as exc:
         raise
 
 # Create a handler that outputs all logs events to es.log
-fh = logging.FileHandler('logs/log-dumper.log')
+fh = logging.FileHandler('logs/log-dumper.log', mode='w')
 fh.setLevel(logging.DEBUG)
 fh.setFormatter(fmt_fh)
 
