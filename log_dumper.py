@@ -26,27 +26,25 @@ def init_elastic(user, password):
 
 # Query Elasticsearch with the relevant parameters
 def search_logs(client, index, module, source, date_arg, program, tier):
+    logger.info('Searching logs from {} satisfying '
+                'ed.tier = {}, '
+                'fileset.module = {}, '
+                'source = {}, '
+                'system.syslog.program = {}.'
+                .format(index, tier, module, source, program))
+
     # Create a range filter dict (date)
     date_from, date_to = date_handler(date_arg)
     date_filter = {'gte': date_from, 'lte': date_to}
     logger.info('Searching logs from {} to {}.'.format(date_from, date_to))
 
-    # Pad a wildcard character behind index
-    index = index + '*'
-
-    # Create a term filter dict (tier, module, source, and program)
-    term_filter = {'ed.tier': tier,
-                   'fileset.module': module,
-                   'source': source}
+    # Create a match query object (module, source, program, tier)
+    query_list = [Q('match', fileset__module=module), Q('match', source=source)]
+    if tier is not None:
+        query_list.append(Q('match', ed__tier=tier))
     if program is not None:
-        term_filter['system.syslog.program'] = program
-
-    logger.info('Searching logs satisfying '
-                'ed.tier = {}, '
-                'fileset.module = {}, '
-                'source = {}, '
-                'system.syslog.program = {}.'
-                .format(tier, module, source, program))
+        query_list.append(Q('match', system__syslog__program=program))
+    query_obj = Q('bool', must=query_list)
 
     # Instantiate a Search object
     s = Search(using=client, index=index) \
@@ -56,19 +54,16 @@ def search_logs(client, index, module, source, date_arg, program, tier):
                  'system.syslog.program',
                  'system.syslog.timestamp']) \
         .sort('system.syslog.timestamp') \
+        .query(query_obj) \
         .filter('range', system__syslog__timestamp=date_filter) \
-        .filter('term', **term_filter) \
         .extra(size=DOC_SIZE)
-
-    # Pretty print our search object for logging / debugging purposes
-    # pprint_s = json.dumps(s.to_dict(), indent=4)
     logger.debug('Created search object s: {}'.format(s.to_dict()))
 
     # Send our query to Elasticsearch and return the response
-    response = s.execute()
-    logger.debug('Got response: {}'.format(response))
+    r = s.execute()
+    logger.debug('Found {} hits in response: {}'.format(r.hits.total, r))
 
-    return response
+    return r
 
 
 # Driver programme
@@ -86,7 +81,22 @@ def main(args):
                        args.program, args.tier)
 
     for hit in logs:
-        print(hit)
+        syslog = hit.system.syslog
+        try:
+            print('{} {} {}[{}]: {}'.format(syslog.timestamp,
+                                            syslog.hostname,
+                                            syslog.program,
+                                            syslog.pid,
+                                            syslog.message))
+        except AttributeError:
+            logger.warning('pid not found for {}/{}/{}'
+                           .format(hit.meta.index,
+                                   hit.meta.doc_type,
+                                   hit.meta.id))
+            print('{} {} {}: {}'.format(syslog.timestamp,
+                                        syslog.hostname,
+                                        syslog.program,
+                                        syslog.message))
 
 if __name__ == '__main__':
     # Define command line arguments' structure
