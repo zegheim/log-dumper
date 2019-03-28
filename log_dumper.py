@@ -68,7 +68,8 @@ def search_logs(client, index, hosts, source, date_arg, program, tier):
         .sort('system.syslog.timestamp') \
         .query(query_obj) \
         .filter('range', system__syslog__timestamp=date_filter) \
-        .extra(size=DOC_SIZE)
+        .extra(size=DOC_SIZE) \
+        .params(preserve_order=True)
 
     # -n flag is active, so filter based on hostname(s)
     if hosts:
@@ -84,8 +85,8 @@ def search_logs(client, index, hosts, source, date_arg, program, tier):
     logger.debug('Created search object s: {}'.format(s.to_dict()))
 
     # Send our query to Elasticsearch and return the response
-    r = s.execute()
-    logger.debug('Found {} hits in response: {}'.format(r.hits.total, r))
+    r = s.scan()
+    # logger.debug('Found {} hits in response: {}'.format(r.hits.total, r))
 
     return r
 
