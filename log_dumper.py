@@ -5,10 +5,10 @@ import os
 import pprint
 import sys
 
-from elasticsearch import Elasticsearch, ElasticsearchException
+from elasticsearch import Elasticsearch, ElasticsearchException, helpers
 from elasticsearch_dsl import Q, Search
 
-from config import DOC_SIZE, es_server, help
+from config import es_server, help
 from date_handler import date_handler
 from logger import logger
 
@@ -26,21 +26,20 @@ def init_elastic(user, password):
 
 # Query Elasticsearch with the relevant parameters
 def search_logs(client, index, hosts, source, date_arg, program, tier):
-    logger.info('Searching logs from {} satisfying '
-                'ed.tier = {}, '
-                'source = {}, '
-                'system.syslog.hostname = {},'
-                'system.syslog.program = {}.'
+    logger.info('Searching logs from \'{}\' satisfying '
+                'ed.tier = \'{}\', '
+                'source = \'{}\', '
+                'system.syslog.hostname = \'{}\', '
+                'system.syslog.program = \'{}\'.'
                 .format(index, tier, source, hosts, program))
 
     # Create a range filter dict (date)
-    date_from, date_to = date_handler(date_arg)
-    date_filter = {'gte': date_from, 'lte': date_to}
-    logger.info('Searching logs from {} to {}.'.format(date_from, date_to))
+    date_from, date_to, fmt = date_handler(date_arg)
+    date_filter = {'gte': date_from, 'lte': date_to, 'format': fmt}
 
     # Create a match query object (module, source, tier, program, host)
     query_list = [Q('match', fileset__module='system'),
-                  Q('match', source=source)]
+                  Q('match', source__keyword=source)]
 
     # -t flag is active, so filter based on tier
     if tier is not None:
@@ -56,7 +55,7 @@ def search_logs(client, index, hosts, source, date_arg, program, tier):
                      .format(program_query))
         query_list.append(program_query)
 
-    query_obj = Q('bool', must=query_list)
+    query_obj = Q('bool', filter=query_list)
 
     # Instantiate a Search object
     s = Search(using=client, index=index) \
@@ -67,9 +66,7 @@ def search_logs(client, index, hosts, source, date_arg, program, tier):
                  'system.syslog.timestamp']) \
         .sort('system.syslog.timestamp') \
         .query(query_obj) \
-        .filter('range', system__syslog__timestamp=date_filter) \
-        .extra(size=DOC_SIZE) \
-        .params(preserve_order=True)
+        .filter('range', system__syslog__timestamp=date_filter)
 
     # -n flag is active, so filter based on hostname(s)
     if hosts:
@@ -85,8 +82,10 @@ def search_logs(client, index, hosts, source, date_arg, program, tier):
     logger.debug('Created search object s: {}'.format(s.to_dict()))
 
     # Send our query to Elasticsearch and return the response
-    r = s.scan()
-    # logger.debug('Found {} hits in response: {}'.format(r.hits.total, r))
+    r = s.params(preserve_order=True,
+                 raise_on_error=False) \
+        .scan()
+    logger.debug('Found response: {}'.format(r))
 
     return r
 
@@ -107,24 +106,27 @@ def main(args):
     logs = search_logs(es, index, hosts,
                        args.source, args.date,
                        args.program, args.tier)
-
-    for hit in logs:
-        syslog = hit.system.syslog
-        try:
-            print('{} {} {}[{}]: {}'.format(syslog.timestamp,
+    try:
+        for hit in logs:
+            syslog = hit.system.syslog
+            try:
+                print('{} {} {}[{}]: {}'.format(syslog.timestamp,
+                                                syslog.hostname,
+                                                syslog.program,
+                                                syslog.pid,
+                                                syslog.message))
+            except AttributeError:
+                logger.debug('pid not found for \'{}/{}/{}\''
+                             .format(hit.meta.index,
+                                     hit.meta.doc_type,
+                                     hit.meta.id))
+                print('{} {} {}: {}'.format(syslog.timestamp,
                                             syslog.hostname,
                                             syslog.program,
-                                            syslog.pid,
                                             syslog.message))
-        except AttributeError:
-            logger.warning('pid not found for {}/{}/{}'
-                           .format(hit.meta.index,
-                                   hit.meta.doc_type,
-                                   hit.meta.id))
-            print('{} {} {}: {}'.format(syslog.timestamp,
-                                        syslog.hostname,
-                                        syslog.program,
-                                        syslog.message))
+    except helpers.ScanError, e:
+        logger.error(e)
+
 
 if __name__ == '__main__':
     # Define command line arguments' structure
