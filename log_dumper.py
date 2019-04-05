@@ -8,7 +8,7 @@ import sys
 from elasticsearch import Elasticsearch, ElasticsearchException, helpers
 from elasticsearch_dsl import Q, Search
 
-from config import es_server, help
+from config import ES_SERVER, help
 from date_handler import date_handler
 from logger import logger
 
@@ -16,10 +16,10 @@ from logger import logger
 # Instantiate an Elasticsearch client with the required settings
 def init_elastic(user, password):
     auth_values = (user, password)
-    es = Elasticsearch([es_server['base_url']],
+    es = Elasticsearch([ES_SERVER['base_url']],
                        use_ssl=True,
                        verify_certs=True,
-                       ca_certs=es_server['crt_path'],
+                       ca_certs=ES_SERVER['crt_path'],
                        http_auth=auth_values)
     return es
 
@@ -94,8 +94,17 @@ def search_logs(client, index, hosts, source, date_arg, program, tier):
 def main(args):
     logger.debug('Received arguments: {}'.format(args))
 
+    # Read the password from the config file
+    try:
+        pwd_file = open(ES_SERVER['pwd_path'])
+        password = pwd_file.read()
+        pwd_file.close()
+    except IOError, e:
+        logger.error(e)
+        sys.exit(1)
+
     # Create an Elasticsearch instance
-    es = init_elastic(es_server['username'], es_server['password'])
+    es = init_elastic(ES_SERVER['username'], password)
 
     # Pad a wildcard character behind index
     index = args.index + '*'
