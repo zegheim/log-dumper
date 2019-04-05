@@ -66,7 +66,7 @@ def search_logs(client, index, hosts, source, date_arg, program, tier):
                  'system.syslog.timestamp']) \
         .sort('system.syslog.timestamp') \
         .query(query_obj) \
-        .filter('range', system__syslog__timestamp=date_filter)
+        .filter('range', **{'@timestamp': date_filter})
 
     # -n flag is active, so filter based on hostname(s)
     if hosts:
@@ -132,7 +132,7 @@ if __name__ == '__main__':
     # Define command line arguments' structure
     parser = argparse.ArgumentParser(description=help['desc'])
     parser.add_argument('index', help=help['index'])
-    parser.add_argument('-d', dest='date', default=None,
+    parser.add_argument('-d', dest='date', default=None, nargs='+',
                         metavar='<DATE_ARG>', help=help['d'])
     parser.add_argument('-n', dest='hosts', nargs='+', default=[],
                         metavar='<HOSTNAME>', help=help['n'])
