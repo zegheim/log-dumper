@@ -1,14 +1,14 @@
 #!/usr/bin/python
 
+import errno
 import logging
 import os
-import errno
 
-from config import log_level
+from config import LOG_LEVEL
 
 # Instantiate a logger to log all errors
 logger = logging.getLogger(__name__)
-logger.setLevel(log_level)
+logger.setLevel(LOG_LEVEL)
 
 # Define how we format our log messages
 fmt_ch = logging.Formatter('[%(levelname)s]: %(message)s')
@@ -30,7 +30,7 @@ except OSError as exc:
         raise
 
 # Create a handler that outputs all logs events to es.log
-fh = logging.FileHandler('logs/log-dumper.log')
+fh = logging.FileHandler('logs/log-dumper.log', mode='w')
 fh.setLevel(logging.DEBUG)
 fh.setFormatter(fmt_fh)
 
