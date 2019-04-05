@@ -4,6 +4,7 @@
 
 # Don't track these files
 config.py
+passwd
 .vscode/
 logs/
 
