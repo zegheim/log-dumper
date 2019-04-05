@@ -92,7 +92,7 @@ def date_handler(date_arg):
     if not any(x in date_from for x in [':', 'now']):
         date_from += '/d'
 
-    logger.info('Searching e-mails from \'{}\' to \'{}\'.'
+    logger.info('Searching logs from \'{}\' to \'{}\'.'
                 .format(date_from, date_to))
 
     return date_from, date_to, fmt
