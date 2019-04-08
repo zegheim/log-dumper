@@ -1,8 +1,6 @@
 #!/usr/bin/python
 
 import argparse
-import os
-import pprint
 import sys
 
 from elasticsearch import Elasticsearch, ElasticsearchException, helpers
