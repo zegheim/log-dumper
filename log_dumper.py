@@ -29,7 +29,7 @@ def search_logs(client, index, hosts, source, date_arg, program, tier):
     logger.info('Searching logs from \'{}\' satisfying '
                 'ed.tier = \'{}\', '
                 'source = \'{}\', '
-                'system.syslog.hostname = \'{}\', '
+                'system.syslog.hostname = {}, '
                 'system.syslog.program = \'{}\'.'
                 .format(index, tier, source, hosts, program))
 
@@ -118,21 +118,25 @@ def main(args):
     try:
         for hit in logs:
             syslog = hit.system.syslog
+            # sys.stdout.write prevent whitespaces between print statements
+            sys.stdout.write('{} {} {}'.format(syslog.timestamp,
+                                               syslog.hostname,
+                                               syslog.program))
             try:
-                print('{} {} {}[{}]: {}'.format(syslog.timestamp,
-                                                syslog.hostname,
-                                                syslog.program,
-                                                syslog.pid,
-                                                syslog.message))
+                sys.stdout.write('[{}]'.format(syslog.pid))
             except AttributeError:
                 logger.debug('pid not found for \'{}/{}/{}\''
                              .format(hit.meta.index,
                                      hit.meta.doc_type,
                                      hit.meta.id))
-                print('{} {} {}: {}'.format(syslog.timestamp,
-                                            syslog.hostname,
-                                            syslog.program,
-                                            syslog.message))
+            try:
+                sys.stdout.write(': {}'.format(syslog.message))
+            except AttributeError:
+                logger.debug('message not found for \'{}/{}/{}\''
+                             .format(hit.meta.index,
+                                     hit.meta.doc_type,
+                                     hit.meta.id))
+            print()  # add a newline
     except helpers.ScanError, e:
         logger.error(e)
 
