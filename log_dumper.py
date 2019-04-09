@@ -94,9 +94,8 @@ def main(args):
 
     # Read the password from the config file
     try:
-        pwd_file = open(ES_SERVER['pwd_path'])
-        password = pwd_file.read()
-        pwd_file.close()
+        with open(ES_SERVER['pwd_path'], 'r') as pwd_file:
+            password = pwd_file.read()
     except IOError, e:
         logger.error(e)
         sys.exit(1)
