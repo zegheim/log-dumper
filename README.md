@@ -1,2 +1,5 @@
-# log-dumper
-Query Elasticsearch for relevant logs and dump them to std.out, eliminating the need to ssh into individual boxes.
+As part of my Student Experience post, I developed `log_dumper`, a Python-based command line tool which queries Elasticsearch for relevant logs based on supplied filters, and "dumps" it in its original format to std.out.
+
+The motivation behind is to eliminate the need to ssh into multiple boxes to collect relevant logs (not to mention doing so will remove any form of sorting!). It is possible to do so with Kibana, but its query language is arguably rather unintuitive and the process itself is quite tedious, involving (plenty of) mouse clicks. The user is also not able to do further processing on them.
+
+I developed `log_dumper` to precisely solve this problem. A user might want to, say, investigate a DOS attack on `rhine` and `thames` that has been happening in the last hour and a half or so. He or she can use `log_dumper` to get all logs coming from `rhine` and `thames` (but not `danube`) within the last 90 minutes, pipe the output to a file, and do some further processing with it, all within seconds.
