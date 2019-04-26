@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import argparse
+import logging
 import sys
 
 from elasticsearch import Elasticsearch, ElasticsearchException, helpers
@@ -152,8 +153,17 @@ if __name__ == '__main__':
                         metavar='<PATH/TO/LOG>', help=help['s'])
     parser.add_argument('-t', dest='tier', choices=['live', 'dev', 'test'],
                         metavar='<SERVER TIER>', help=help['t'])
+    parser.add_argument('--debug', dest='enable_log',
+                        action='store_true', help=help['debug'])
 
     # Parse arguments
     args = parser.parse_args()
+
+    # Remove FileHandler from the list of handlers if --debug is not turned on
+    if not args.enable_log:
+        handlers = logger.handlers
+        logger.handlers = [
+            h for h in handlers if not isinstance(h, logging.FileHandler)
+        ]
 
     main(args)
